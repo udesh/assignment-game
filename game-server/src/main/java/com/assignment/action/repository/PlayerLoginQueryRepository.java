@@ -1,6 +1,6 @@
-package com.assignment.command.repository;
+package com.assignment.action.repository;
 
-import com.assignment.command.PlayerLogin;
+import com.assignment.action.PlayerLogin;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,7 +1,10 @@
 package com.assignment.application.model;
 
+import javax.validation.constraints.NotNull;
+
 public class LoginMessage {
 
+    @NotNull(message="Name cannot be missing or empty")
     private final String name;
     private final String playMode;
 

@@ -1,16 +1,18 @@
 package com.assignment.game.service;
 
+import com.assignment.action.PlayerAction;
 import com.assignment.application.model.Message;
 import com.assignment.application.service.MessageService;
 import com.assignment.application.service.RunnableMessageSender;
-import com.assignment.command.PlayerLogin;
-import com.assignment.command.service.LoginService;
+import com.assignment.action.PlayerLogin;
+import com.assignment.action.service.LoginService;
 import com.assignment.game.Game;
 import com.assignment.game.GameTurn;
 import com.assignment.game.Player;
 import com.assignment.game.repository.GameCommandRepository;
 import com.assignment.game.repository.GameQueryRepository;
 import com.assignment.utils.Constants;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -66,14 +68,13 @@ public class GameService implements IGameService {
         return null;
     }
 
-    public void gamePlay(String command) {
-        assert isValidBeforeGameRound(command) : Constants.INVALID_INPUT;
+    public void gamePlay(PlayerAction playerAction) {
         Game game = gameQueryRepository.findTopByOrderByCreatedTimeDesc();
-        if (Constants.START_COMMAND.equals(command)) {
+        assert isValidBeforeGameRound(playerAction.getAction()) : Constants.INVALID_INPUT;
+        if (Constants.START_COMMAND.equals(playerAction.getAction())) {
             play(game);
         } else {
-            Integer addNumber = Integer.parseInt(command);
-            gameTurnPlay(game, addNumber);
+            gameTurnPlay(game, playerAction.getAction());
         }
         sendGameMessageAndSave(game);
     }
@@ -85,7 +86,7 @@ public class GameService implements IGameService {
     }
 
     public void play(Game game) {
-        while (isAutoPlayTurn(game)) gameTurnPlay(game, null);
+        while (isAutoPlayTurn(game)) gameTurnPlay(game, Constants.AUTO);
     }
 
     public Game gameBuilder(PlayerLogin latestPlayer, PlayerLogin currentPlayer) {
@@ -112,25 +113,23 @@ public class GameService implements IGameService {
         return gameTurn;
     }
 
-    public String getGameTurnMessage(int currenTurnInput, int addNumber, int result) {
+    public String getGameTurnMessage(int currenTurnInput, int addNumber, int result, String playerName) {
         var gameTurnMessage = String.format(Constants.GAME_RESULT_MESSAGE,
                 currenTurnInput,
-                addNumber, result,currenTurnInput, addNumber, result);
-        return isWinning(result) ? Constants.GAME_WIN_MESSAGE : gameTurnMessage;
+                addNumber, result,currenTurnInput, addNumber, divideByValue, result);
+        var gameTurnWin = String.format(Constants.GAME_WIN_MESSAGE,
+                currenTurnInput,
+                addNumber, result, currenTurnInput, addNumber, divideByValue, result, playerName);
+        return isWinning(result) ? gameTurnWin : gameTurnMessage;
     }
 
-    public void gameTurnPlay(Game game, Integer addNumberInput) {
+    public void gameTurnPlay(Game game, String playerAction) {
         var gameTurnsListSize = game.getGameTurnList().size();
         GameTurn lastGameTurn = game.getGameTurnList().get(gameTurnsListSize - 1);
         var currenTurnInput = lastGameTurn.getOutput();
         var residual = currenTurnInput % divideByValue;
         var addNumber = getAddNumber(residual);
-        if (addNumberInput != null) addNumber = addNumberInput;
-        var currentTurnOutPut = currenTurnInput + addNumber;
-        var result = currentTurnOutPut / divideByValue;
-        game.addGameTurn(getGameTurnOnPlay(currentPlayer(game), currenTurnInput,
-                addNumber, result, game.getGameIdentifier()));
-        if (addNumberInput != null) play(game);
+        addGameTurn(game, playerAction, addNumber, currenTurnInput, lastGameTurn);
     }
 
     public GameTurn getGameTurnOnPlay(PlayerLogin currenPlayer, int currenTurnInput,int addNumber,int result,
@@ -138,8 +137,9 @@ public class GameService implements IGameService {
         Player player = new Player(UUID.randomUUID(), currenPlayer.getName(), addNumber,
                 currenPlayer.getPlayMode());
         GameTurn gameTurn = new GameTurn(UUID.randomUUID(), player, result);
-        Message currentTurnMessage = messengerService.createMessage(gameTurn.getPlayer().getName(),
-                getGameTurnMessage(currenTurnInput, addNumber, result), gameIdentifier );
+        String senderName = isWinning(result) ? Constants.MESSAGE_FROM_GAME : gameTurn.getPlayer().getName();
+        Message currentTurnMessage = messengerService.createMessage(senderName,
+                getGameTurnMessage(currenTurnInput, addNumber, result, gameTurn.getPlayer().getName()), gameIdentifier );
         gameTurn.setMessage(currentTurnMessage);
         gameTurn.setMessageStatus(Constants.NOT_PUBLISHED);
         return gameTurn;
@@ -151,7 +151,8 @@ public class GameService implements IGameService {
         GameTurn gameTurn = game.getGameTurnList().get(size - 1);
         if (gameTurn.getOutput() == 1) return false;
         Player player = gameTurn.getPlayer();
-        return game.getPlayerList().stream().anyMatch(playerLogin -> !playerLogin.getName().equals(player.getName())
+        return game.getPlayerList().stream().anyMatch(playerLogin ->
+                !playerLogin.getName().equals(player.getName())
                 && playerLogin.getPlayMode().equals(Constants.AUTO));
     }
 
@@ -162,19 +163,55 @@ public class GameService implements IGameService {
                 !playerLogin.getName().equals(player.getName())).findFirst().orElse(null);
     }
 
+    public Integer getRandomNumberBetween(Integer minimumValue,Integer maximumValue) {
+        return new Random().nextInt(maximumValue-minimumValue) + minimumValue;
+    }
+
+
+    private void addGameTurn(Game game, String command, Integer addNumber,
+                             Integer currenTurnInput, GameTurn lastGameTurn) {
+        if (command.equals(Constants.AUTO) || isValidAddNumberCommand(command, addNumber)) {
+            var currentTurnOutPut = currenTurnInput + addNumber;
+            var result = currentTurnOutPut / divideByValue;
+            game.addGameTurn(getGameTurnOnPlay(currentPlayer(game), currenTurnInput,
+                    addNumber, result, game.getGameIdentifier()));
+        }  else {
+            game.addGameTurn(getGameTurnWhenInputNotMatch(lastGameTurn,Integer.parseInt(command)));
+        }
+         play(game);
+    }
+
+    private GameTurn getGameTurnWhenInputNotMatch(GameTurn lastGameTurn,Integer addNumber) {
+        GameTurn gameTurn = new GameTurn(UUID.randomUUID(), lastGameTurn.getPlayer(), lastGameTurn.getOutput());
+        String gameReplayMessageString = String.format(Constants.GAME_RESULT_MESSAGE_FOR_REPLAY,
+                 addNumber, divideByValue);
+        var gameId = !Strings.isEmpty(lastGameTurn.getMessage().getGameId()) ?
+                lastGameTurn.getMessage().getGameId() : Constants.REPLAY_TURN_DEFAULT;
+        Message gameRelayMessage = messengerService.createMessage(Constants.MESSAGE_FROM_GAME,
+                gameReplayMessageString, gameId );
+        gameTurn.setMessage(gameRelayMessage);
+        gameTurn.setMessageStatus(Constants.NOT_PUBLISHED);
+        return gameTurn;
+    }
+
     private String createGameIdentifier() {
         UUID uuid = UUID.randomUUID();
         return uuid.toString();
     }
 
-    private boolean isValidBeforeGameRound(String value) {
-        return value != null &&
-                (value.equals(Constants.ZERO_VALUE) || value.equals(Constants.ZERO_VALUE) ||
-                        value.equals(Constants.MINUS_ONE) || value.equals(Constants.PLUS_ONE));
+    private boolean isValidBeforeGameRound(String command) {
+        return command != null &&
+                            (command.equals(Constants.START_COMMAND)
+                            || command.equals(Constants.ZERO_VALUE)
+                            || command.equals(Constants.MINUS_ONE)
+                            || command.equals(Constants.PLUS_ONE));
     }
 
-    private Integer getRandomNumberBetween(Integer minimumValue,Integer maximumValue) {
-            return new Random().nextInt(maximumValue-minimumValue) + minimumValue;
+    private boolean isValidAddNumberCommand(String value, Integer addNumber) {
+        return ((value.equals(Constants.ZERO_VALUE)
+                || value.equals(Constants.MINUS_ONE)
+                || value.equals(Constants.PLUS_ONE)) &&
+                value.equals(String.valueOf(addNumber)));
     }
 
     private Integer getAddNumber(int residual) {

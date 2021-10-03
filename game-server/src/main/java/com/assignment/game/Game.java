@@ -1,6 +1,6 @@
 package com.assignment.game;
 
-import com.assignment.command.PlayerLogin;
+import com.assignment.action.PlayerLogin;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 

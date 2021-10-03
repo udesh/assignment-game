@@ -1,6 +1,5 @@
 package com.assignment.application.consumer;
 
-import com.assignment.application.service.MessageService;
 import com.assignment.utils.Constants;
 import com.assignment.application.model.Message;
 import org.slf4j.Logger;

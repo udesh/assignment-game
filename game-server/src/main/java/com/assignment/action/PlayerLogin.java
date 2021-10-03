@@ -1,4 +1,4 @@
-package com.assignment.command;
+package com.assignment.action;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;

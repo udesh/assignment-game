@@ -1,7 +1,7 @@
-package com.assignment.command.service;
+package com.assignment.action.service;
 
-import com.assignment.command.repository.PlayerLoginCommandRepository;
-import com.assignment.command.repository.PlayerLoginQueryRepository;
+import com.assignment.action.repository.PlayerLoginCommandRepository;
+import com.assignment.action.repository.PlayerLoginQueryRepository;
 import org.springframework.stereotype.Service;
 
 @Service

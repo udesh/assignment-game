@@ -38,6 +38,18 @@ public class Message {
         this.timestamp = timestamp;
     }
 
+    public String getSender() {
+        return sender;
+    }
+
+    public String getGameId() {
+        return gameId;
+    }
+
+    public String getTimestamp() {
+        return timestamp;
+    }
+
     @Override
     public String toString() {
         return "Message{" +

@@ -20,13 +20,13 @@ const App = () => {
 
   let onMessageReceived = (msg) => {
     setMessages(messages.concat(msg));
-    setGame(msg.id);
+    setGame(msg.gameId);
   }
 
   let onSendMessage = (msgText) => {
     gameAPI.sendMessage(user.username, msgText, gameId).then(res => {
     }).catch(err => {
-      console.log('Error Occured while sending message to api');
+      console.log('Error Occured while sending message to api' );
     })
   }
 
@@ -42,7 +42,7 @@ const App = () => {
     <div className="App">
       {!!user ?
         (
-          <div>
+          <>
             <SockJsClient
               url={SOCKET_URL}
               topics={['/topic/group']}
@@ -56,7 +56,7 @@ const App = () => {
               currentUser={user}
             />
             <Input onSendMessage={onSendMessage} />
-          </div>
+          </>
         ) :
         <LoginForm onSubmit={handleLoginSubmit} />
       }

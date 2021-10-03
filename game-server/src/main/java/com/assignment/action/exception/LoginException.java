@@ -1,4 +1,4 @@
-package com.assignment.command.exception;
+package com.assignment.action.exception;
 
 /**
  * Login Exception.

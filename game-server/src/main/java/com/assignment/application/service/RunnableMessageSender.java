@@ -1,7 +1,6 @@
 package com.assignment.application.service;
 
 import com.assignment.game.Game;
-import com.assignment.game.GameTurn;
 import com.assignment.game.repository.GameCommandRepository;
 import com.assignment.utils.Constants;
 import org.slf4j.Logger;
@@ -25,20 +24,29 @@ public class RunnableMessageSender implements Runnable {
 
     @Override
     public void run() {
-        for (GameTurn gameTurn : game.getGameTurnList()) {
-            if (gameTurn.getMessage() != null && !gameTurn.getMessage().getCommand().isEmpty() &&
-                    gameTurn.getMessageStatus().equals(Constants.NOT_PUBLISHED)) {
-                try {
-                    messengerService.sendMessageGameTopic(gameTurn.getMessage());
-                    gameTurn.setMessageStatus(Constants.PUBLISHED);
-                    Thread.sleep(1500);
-                } catch (ExecutionException |InterruptedException e) {
-                    logger.error("Exception on sending message in runnable thread: " + e.getLocalizedMessage());
-                } finally {
-                   logger.error(" Exception finally clause. Message sending failure.");
-                }
-            }
+        game.getGameTurnList().stream().filter(gameTurn -> gameTurn.getMessage() != null &&
+                !gameTurn.getMessage().getCommand().isEmpty() &&
+                gameTurn.getMessageStatus().equals(Constants.NOT_PUBLISHED)).
+                forEachOrdered(gameTurn -> {
+        try {
+            messengerService.sendMessageGameTopic(gameTurn.getMessage());
+            gameTurn.setMessageStatus(Constants.PUBLISHED);
+            Thread.sleep(1500);
+        } catch (ExecutionException | InterruptedException e) {
+            logger.error("Exception on sending message in runnable thread: " + e.getLocalizedMessage());
+        } finally {
+            logger.info("Message sending to kafka topic final.");
         }
-        gameCommandRepository.save(game);
+        });
+        try {
+            gameCommandRepository.save(game);
+        }
+        catch (Exception e) {
+            logger.error("Exception on game save to db in runnable thread: " + e.getLocalizedMessage());
+        }
+        finally {
+            logger.info("Game save to db final.");
+        }
+
     }
 }

@@ -1,13 +1,14 @@
 package com.assignment.game.service;
 
-import com.assignment.command.PlayerLogin;
-import com.assignment.command.service.LoginService;
+import com.assignment.action.PlayerLogin;
+import com.assignment.action.service.LoginService;
 import com.assignment.game.Game;
 import com.assignment.game.GameTurn;
 import com.assignment.game.repository.GameQueryRepository;
 import org.junit.jupiter.api.*;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -26,6 +27,8 @@ class GameServiceTest {
     GameQueryRepository gameQueryRepository;
     @Autowired
     LoginService loginService;
+    @Value("${game.divideBy.value}")
+    private int divideByValue;
 
 
     @BeforeEach
@@ -132,7 +135,7 @@ class GameServiceTest {
     }
 
     @Test
-    @DisplayName("Check for current player")
+    @DisplayName("Check for auto play condition in game turn")
     void getCurrentPlayerAuto() {
         PlayerLogin PlayerLogin1 = new PlayerLogin(UUID.randomUUID(),
                 "Player1","AUTO", LocalDateTime.now(),"ONLINE");
@@ -151,7 +154,14 @@ class GameServiceTest {
         Assertions.assertNotNull(gameService.createGame("Player2", "MANUAL"));
         Game game = gameQueryRepository.findTopByOrderByCreatedTimeDesc();
         int input = game.getGameTurnList().get(0).getOutput();
-        gameService.gameTurnPlay(game, 1);
-        Assertions.assertEquals((input + 1)/3, game.getGameTurnList().get(1).getOutput());
+        int addedValue = input + 1;
+        int result;
+        if (!(addedValue % divideByValue == 0)) {
+            result = input;
+        } else {
+            result = input/divideByValue;
+        }
+        gameService.gameTurnPlay(game, Integer.toString(1));
+        Assertions.assertEquals(result, game.getGameTurnList().get(1).getOutput());
     }
 }

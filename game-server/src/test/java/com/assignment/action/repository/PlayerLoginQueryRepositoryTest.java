@@ -1,4 +1,4 @@
-package com.assignment.command.repository;
+package com.assignment.action.repository;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
